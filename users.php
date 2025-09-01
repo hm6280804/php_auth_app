@@ -4,7 +4,7 @@ require_once __DIR__ . '/auth.php';
 require_login();
 
 $pdo = db();
-$users = $pdo->query('SELECT id, name, email, created_at FROM users ORDER BY id DESC')->fetchAll();
+$auth_users = $pdo->query('SELECT id, name, email, created_at FROM users ORDER BY id DESC')->fetchAll();
 ?>
 <?php include __DIR__ . '/header.php'; ?>
 <div class="card shadow-sm">

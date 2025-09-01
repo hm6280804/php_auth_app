@@ -28,12 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$errors) {
         try {
             $pdo = db();
-            $stmt = $pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
+            $stmt = $pdo->prepare('SELECT id FROM auth_users WHERE email = :email LIMIT 1');
             $stmt->execute([':email' => strtolower($email)]);
             if ($stmt->fetch()) {
                 $errors[] = 'Email is already registered.';
             } else {
-                $stmt = $pdo->prepare('INSERT INTO users (name, email, password_hash) VALUES (:name, :email, :password_hash)');
+                $stmt = $pdo->prepare('INSERT INTO auth_users (name, email, password_hash) VALUES (:name, :email, :password_hash)');
                 $stmt->execute([
                     ':name' => $name,
                     ':email' => strtolower($email),
