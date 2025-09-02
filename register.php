@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm = $_POST['confirm_password'] ?? '';
+    $errors = $errors ?? [];
 
     if ($name === '' || $email === '' || $password === '') {
         $errors[] = 'All fields are required.';
@@ -27,30 +28,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         try {
-            $pdo = db();
-            $stmt = $pdo->prepare('SELECT id FROM auth_users WHERE email = :email LIMIT 1');
-            $stmt->execute([':email' => strtolower($email)]);
-            if ($stmt->fetch()) {
+            $pdo = db(); // your PDO Postgres connection
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+            // Normalize email to lowercase so UNIQUE(email) works case-insensitively at app level
+            $normEmail = strtolower($email);
+
+            // Insert and return the new user in one statement; if email exists, do nothing
+            $stmt = $pdo->prepare(
+                'INSERT INTO auth_users (name, email, password_hash)
+                 VALUES (:name, :email, :password_hash)
+                 ON CONFLICT (email) DO NOTHING
+                 RETURNING id, name, email'
+            );
+
+            $stmt->execute([
+                ':name' => $name,
+                ':email' => $normEmail,
+                ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
+            ]);
+
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user) {
+                // Conflict hit: email already exists
                 $errors[] = 'Email is already registered.';
             } else {
-                $stmt = $pdo->prepare('INSERT INTO auth_users (name, email, password_hash) VALUES (:name, :email, :password_hash)');
-                $stmt->execute([
-                    ':name' => $name,
-                    ':email' => strtolower($email),
-                    ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
-                ]);
                 // Auto-login
-                $id = $pdo->lastInsertId();
-                $user = ['id' => $id, 'name' => $name, 'email' => $email];
                 login_user($user);
                 header('Location: users.php');
                 exit;
             }
         } catch (PDOException $e) {
-            $errors[] = 'Registration failed.' . $e->getMessage();
+            $errors[] = 'Registration failed: ' . $e->getMessage();
         }
     }
 }
+
 ?>
 <?php include __DIR__ . '/header.php'; ?>
 <div class="row justify-content-center">
